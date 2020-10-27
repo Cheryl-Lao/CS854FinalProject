@@ -4,17 +4,16 @@ import time
 import numpy as np
 import gc
 
-image_path = "../data/chessboard_large.jpg"
-binary_path = "../data/binary.png"
+image_path = ""
+binary_path = ""
 
 # NOTE: OpenCV by RGB into Gray using a weighted average. BoofCV uses just the average
 img = cv2.imread(image_path,cv2.IMREAD_GRAYSCALE)
 
 # Binary image. 0 and 255. This matches what OpenCV expects
 img_binary = cv2.imread(binary_path, cv2.IMREAD_GRAYSCALE)
-
-region_radius = 5
-region_width = region_radius*2+1
+region_radius = 0
+region_width = 0
 
 # Leave comment out for official benchmarks
 # cv2.setNumThreads(0)
@@ -71,10 +70,12 @@ if hasattr(cv2, 'xfeatures2d'):
 
     # original paper had 4 scales per octave
     # threshold tuned to detect 10,000 features
+    """
     surf = cv2.xfeatures2d.SURF_create(hessianThreshold=420, nOctaves=4, nOctaveLayers=4, extended=False, upright=False)
     def detectSurf():
         kp,des = surf.detectAndCompute(img, None)
         # print("SURF found {:d}".format(len(kp)))
+    """
 
 # TODO load an already thresholded image
 # TODO contour
@@ -94,6 +95,25 @@ def houghLine():
     lines = cv2.HoughLines(img, rho=5, theta=np.pi/180, threshold=15000)
     # print("total lines {}".format(len(lines)))
 
+#common operations to expand ML dataset:
+def resize():
+  
+  img_width_original = img.shape[0]
+  img_height_original = img.shape[1]
+  #reduce the size of the image to a quarter of the original -- linear by default
+  smaller_image = cv2.resize(img,(img_width_original//2,img_height_original//2)) 
+
+  #Bring it back up to the size it was before -- linear by default
+  larger_image = cv2.resize(img,(img_width_original,img_height_original)) 
+
+def rotate():
+  rotated = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+  
+def mirror():
+  mirrored = cv2.flip(img, 0)
+  mirrored = cv2.flip(img, 1)
+  mirrored = cv2.flip(img, -1)
+
 def benchmark( f , num_trials=10):
     gc.collect()
     times=[]
@@ -104,23 +124,50 @@ def benchmark( f , num_trials=10):
         times.append(t1-t0)
     return statistics.mean(times)*1000
 
-# Trouble with operations not finishing on Raspberry PI. Steps are take below to mitigate memory use
-print("contour         {:.1f} ms".format(benchmark(contour)))
-img_binary = None
-print("Gaussian Blur   {:.1f} ms".format(benchmark(gaussianBlur)))
-print("meanThresh      {:.1f} ms".format(benchmark(meanThresh)))
-print("gradient sobel  {:.1f} ms".format(benchmark(gradientSobel)))
-print("histogram       {:.1f} ms".format(benchmark(computeHistogram,1)))
-print("canny           {:.1f} ms".format(benchmark(computeCanny)))
-if hasattr(cv2, 'xfeatures2d'):
-    print("sift            {:.1f} ms".format(benchmark(detectSift, 10)))
-    sift = None
-    print("surf            {:.1f} ms".format(benchmark(detectSurf, 10)))
-    surf = None
-else:
-    print("Skipping SIFT and SURF. Not installed")
-print("good features   {:.1f} ms".format(benchmark(goodFeatures)))
-print("hough polar     {:.1f} ms".format(benchmark(houghLine)))
+image_paths = ["../data/chessboard_large.jpg"]
+binary_paths = ["../data/binary.png"]
+radii = [1, 3, 5]
 
-print()
+def testRun():
+  print("resize   {:.1f} ms".format(benchmark(resize)))
+  print("rotate   {:.1f} ms".format(benchmark(rotate)))
+  print("mirror   {:.1f} ms".format(benchmark(mirror)))
+  print("contour         {:.1f} ms".format(benchmark(contour)))
+  img_binary = None
+  print("Gaussian Blur   {:.1f} ms".format(benchmark(gaussianBlur)))
+  print("meanThresh      {:.1f} ms".format(benchmark(meanThresh)))
+  print("gradient sobel  {:.1f} ms".format(benchmark(gradientSobel)))
+  print("histogram       {:.1f} ms".format(benchmark(computeHistogram,1)))
+  print("canny           {:.1f} ms".format(benchmark(computeCanny)))
+  if hasattr(cv2, 'xfeatures2d'):
+      print("sift            {:.1f} ms".format(benchmark(detectSift, 10)))
+      sift = None
+      print("surf            {:.1f} ms".format(benchmark(detectSurf, 10)))
+      surf = None
+  else:
+      print("Skipping SIFT and SURF. Not installed")
+  print("good features   {:.1f} ms".format(benchmark(goodFeatures)))
+  print("hough polar     {:.1f} ms".format(benchmark(houghLine)))
+  print()
+
+
+for i in range(len(image_paths)):
+  image_path = image_paths[i]
+  binary_path = binary_paths[i]
+  print("Image path: " + str(image_path))
+  print("Binary path: " + str(binary_path))
+  # NOTE: OpenCV by RGB into Gray using a weighted average. BoofCV uses just the average
+  img = cv2.imread(image_path,cv2.IMREAD_GRAYSCALE)
+
+  # Binary image. 0 and 255. This matches what OpenCV expects
+  img_binary = cv2.imread(binary_path, cv2.IMREAD_GRAYSCALE)
+
+  for radius in radii:
+    region_radius = radius
+    print("Radius: " + str(radius))
+    region_width = region_radius*2+1
+    #run all the tests again with the new parameters
+    testRun()
+
+
 print("Done!")
